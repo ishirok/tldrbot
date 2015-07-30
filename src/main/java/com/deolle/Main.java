@@ -82,7 +82,7 @@ public class Main {
                                         kws.getKeywords().remove(newKeyword);
                                     }
                                 }
-                                if (kws.getKeywords().size() == 0) {
+                                if (kws.getKeywords().isEmpty()) {
                                     try {
                                         String params = "chat_id=" + msg.getChat().getId() + "&text=" + URLEncoder.encode("Keywords list is empty.", "UTF-8");
                                         getMoreData("sendMessage", params);
@@ -95,7 +95,7 @@ public class Main {
                         } else if (msg.getText().toLowerCase().startsWith("/list")) {
                             for (Keyword kws : keywords) {
                                 if (kws.getChatId().equals(msg.getChat().getId())) {
-                                    if (kws.getKeywords().size() == 0) {
+                                    if (kws.getKeywords().isEmpty()) {
                                         try {
                                             String params = "chat_id=" + msg.getChat().getId() + "&text=" + URLEncoder.encode("Keywords list is empty.", "UTF-8");
                                             getMoreData("sendMessage", params);
