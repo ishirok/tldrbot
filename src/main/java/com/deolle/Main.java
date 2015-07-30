@@ -61,25 +61,37 @@ public class Main {
                             boolean added = false;
                             for (Keyword kws : keywords) {
                                 if (kws.getChatId().equals(msg.getChat().getId())) {
-                                    String sNewKeyword = msg.getText().toLowerCase().substring(5);
-                                    if (!sNewKeyword.equals("")) {
-                                        added = kws.getKeywords().add(sNewKeyword);
+                                    try {
+                                        String sNewKeyword = msg.getText().toLowerCase().substring(5);
+                                        if (!sNewKeyword.equals("")) {
+                                            added = kws.getKeywords().add(sNewKeyword);
+                                        }
+                                    } catch (StringIndexOutOfBoundsException e) {
+                                        e.printStackTrace();
                                     }
                                 }
                             }
                             if (!added) {
-                                Keyword newKeyword = new Keyword();
-                                String sNewKeyword = msg.getText().toLowerCase().substring(5);
-                                newKeyword.setChatId(msg.getChat().getId());
-                                newKeyword.getKeywords().add(sNewKeyword);
-                                keywords.add(newKeyword);
+                                try {
+                                    Keyword newKeyword = new Keyword();
+                                    String sNewKeyword = msg.getText().toLowerCase().substring(5);
+                                    newKeyword.setChatId(msg.getChat().getId());
+                                    newKeyword.getKeywords().add(sNewKeyword);
+                                    keywords.add(newKeyword);
+                                } catch (StringIndexOutOfBoundsException e) {
+                                    e.printStackTrace();
+                                }
                             }
                         } else if (msg.getText().toLowerCase().startsWith("/remove")) {
                             for (Keyword kws : keywords) {
                                 if (kws.getChatId().equals(msg.getChat().getId())) {
-                                    String newKeyword = msg.getText().toLowerCase().substring(8);
-                                    if (!newKeyword.equals("")) {
-                                        kws.getKeywords().remove(newKeyword);
+                                    try {
+                                        String newKeyword = msg.getText().toLowerCase().substring(8);
+                                        if (!newKeyword.equals("")) {
+                                            kws.getKeywords().remove(newKeyword);
+                                        }
+                                    } catch (StringIndexOutOfBoundsException e) {
+                                        e.printStackTrace();
                                     }
                                 }
                                 if (kws.getKeywords().isEmpty()) {
