@@ -81,24 +81,42 @@ public class Main {
                                     if (!newKeyword.equals("")) {
                                         kws.getKeywords().remove(newKeyword);
                                     }
-                                } //TODO si es la última avisar de que no hay más keywords definidas
+                                }
+                                if (kws.getKeywords().size() == 0) {
+                                    try {
+                                        String params = "chat_id=" + msg.getChat().getId() + "&text=" + URLEncoder.encode("Keywords list is empty.", "UTF-8");
+                                        getMoreData("sendMessage", params);
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                        continue;
+                                    }
+                                }
                             }
                         } else if (msg.getText().toLowerCase().startsWith("/list")) {
                             for (Keyword kws : keywords) {
                                 if (kws.getChatId().equals(msg.getChat().getId())) {
-                                    for (String kw : kws.getKeywords()) { //TODO mensaje único y si está vacía avisar de que no hay keywords
+                                    if (kws.getKeywords().size() == 0) {
                                         try {
-                                            String params = "chat_id=" + msg.getChat().getId() + "&text=" + URLEncoder.encode(kw, "UTF-8");
+                                            String params = "chat_id=" + msg.getChat().getId() + "&text=" + URLEncoder.encode("Keywords list is empty.", "UTF-8");
                                             getMoreData("sendMessage", params);
                                         } catch (IOException e) {
                                             e.printStackTrace();
                                             continue;
                                         }
+                                    } else {
+                                        for (String kw : kws.getKeywords()) {
+                                            try {
+                                                String params = "chat_id=" + msg.getChat().getId() + "&text=" + URLEncoder.encode(kw, "UTF-8");
+                                                getMoreData("sendMessage", params);
+                                            } catch (IOException e) {
+                                                e.printStackTrace();
+                                                continue;
+                                            }
+                                        }
                                     }
                                 }
                             }
-                        } //TODO añadir método para elegir modo verboso o no verboso (responder por privado)
-                        //TODO añadir método para configurar el tiempo de guardado de los mensajes (max 48h)
+                        }
                     }
 
                     String msgText = msg.getText().toLowerCase();
@@ -123,7 +141,7 @@ public class Main {
             }
 
             try {
-                Thread.sleep(500);
+                Thread.sleep(1000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
