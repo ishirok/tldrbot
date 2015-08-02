@@ -457,6 +457,7 @@ public class Main {
         for (Config config : configs) {
             if (config.getChatId().equals(msg.getChat().getId())) {
                 temp = config;
+                break;
             }
         }
 
@@ -524,8 +525,8 @@ public class Main {
                     if (config.getChatId().equals(msg.getChat().getId())) {
                         config.setiTTL(value);
                         temp = config;
+                        break;
                     }
-                    break;
                 }
 
                 if (temp == null) {
@@ -566,8 +567,8 @@ public class Main {
             if (config.getChatId().equals(msg.getChat().getId())) {
                 config.setVerbose(!config.getVerbose());
                 temp = config;
+                break;
             }
-            break;
         }
 
         if (temp == null) {
