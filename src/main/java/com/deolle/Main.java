@@ -10,29 +10,42 @@ import java.lang.reflect.Type;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.ResourceBundle;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class Main {
 
     private static String TELEGRAMAP                = "https://api.telegram.org/bot";
     private static ArrayList<Keyword> keywords      = new ArrayList<>();
+    private static ArrayList<Config> configs        = new ArrayList<>();
     private static String botKey                    = "";
 
-    private static final String CREATE_TABLE        = "CREATE TABLE KEYWORDS " +
+    private static final String CREATE_TABLE_KW     = "CREATE TABLE KEYWORDS " +
                                                         "(CHAT_ID   INT         NOT NULL, " +
                                                         "KEYWORD    TEXT        NOT NULL, " +
                                                         "CONSTRAINT KW_PK       PRIMARY KEY " +
                                                         "(CHAT_ID, KEYWORD) ON  CONFLICT IGNORE, " +
                                                         "CONSTRAINT KW_UQ       UNIQUE " +
                                                         "(CHAT_ID, KEYWORD) ON  CONFLICT IGNORE);";
+    private static final String CREATE_TABLE_CFG    = "CREATE TABLE CONFIG " +
+                                                        "(CHAT_ID   INT         PRIMARY KEY ON CONFLICT REPLACE " +
+                                                                                "UNIQUE ON CONFLICT REPLACE " +
+                                                                                "NOT NULL, " +
+                                                        "VERBOSE    BOOLEAN, " +
+                                                        "TTL        INT);";
 
-    private static final String CREATE_INDEX        = "CREATE INDEX KW_IDX  ON  KEYWORDS (CHAT_ID, KEYWORD);";
+    private static final String CREATE_INDEX_KW     = "CREATE INDEX KW_IDX  ON  KEYWORDS    (CHAT_ID, KEYWORD);";
+    private static final String CREATE_INDEX_CFG    = "CREATE INDEX CFG_IDX ON  CONFIG      (CHAT_ID);";
+
     private static final String SELECT_KEYWORDS     = "SELECT CHAT_ID, KEYWORD FROM KEYWORDS;";
     private static final String INSERT_KEYWORD      = "INSERT INTO  KEYWORDS (CHAT_ID, KEYWORD) VALUES ( ? , ? );";
-    private static final String DELETE_KEYWORD      = "DELETE FROM KEYWORDS WHERE CHAT_ID = ? AND KEYWORD = ? ;";
+    private static final String DELETE_KEYWORD      = "DELETE FROM  KEYWORDS WHERE CHAT_ID = ? AND KEYWORD = ? ;";
+
+    private static final String SELECT_CONFIG       = "SELECT CHAT_ID, VERBOSE, TTL FROM CONFIG;";
+    private static final String INSERT_CONFIG       = "REPLACE INTO CONFIG (CHAT_ID, VERBOSE, TTL) VALUES ( ? , ? , ? );";
+
+    private static final boolean VERBOSE            = true;
+    private static final int     TTL                = 8;
 
     public static void main(String[] args) {
         int uid = 0;
@@ -47,7 +60,11 @@ public class Main {
             return;
         }
 
-        if (!loadDataFromDatabase(c)) {
+        if (!loadKeywordsData(c)) {
+            return;
+        }
+
+        if (!loadConfigData(c)) {
             return;
         }
 
@@ -77,11 +94,11 @@ public class Main {
                             doCommandRemove(msg, c);
                         } else if (msg.getText().equalsIgnoreCase("/list")) {
                             doCommandList(msg);
-                        }/* else if (msg.getText().toLowerCase().startsWith("/ttl ")) {
-                            doCommandTTL(msg);
-                        } else if (msg.getText().toLowerCase().startsWith("/verbose")) {
-                            doCommandVerbose(msg);
-                        }*/
+                        } else if (msg.getText().toLowerCase().startsWith("/ttl ")) {
+                            doCommandTTL(msg, c);
+                        } else if (msg.getText().equalsIgnoreCase("/verbose")) {
+                            doCommandVerbose(msg, c);
+                        }
                     } else {
                         String msgText = msg.getText().toLowerCase();
                         for (Keyword kws : keywords) {
@@ -96,14 +113,28 @@ public class Main {
             }
 
             try {
-                Thread.sleep(1000);
+                Thread.sleep(2000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
 
-            for (Message msg : queueList) {
+            Iterator<Message> iter = queueList.iterator();
+            while (iter.hasNext()) {
+                Message msg = iter.next();
                 Calendar timeMargin = Calendar.getInstance();
-                timeMargin.add(Calendar.HOUR, -8);
+
+                Config temp = null;
+                for (Config config : configs) {
+                    if (config.getChatId().equals(msg.getChat().getId())) {
+                        temp = config;
+                    }
+                }
+
+                int ttl = TTL;
+                if (temp != null) {
+                    ttl = temp.getiTTL();
+                }
+                timeMargin.add(Calendar.HOUR, -ttl);
                 if (msg.getDate().before(timeMargin.getTime())) {
                     queueList.remove(msg);
                 }
@@ -126,10 +157,13 @@ public class Main {
             c.setAutoCommit(true);
 
             stmt = c.createStatement();
-            stmt.executeUpdate(CREATE_TABLE);
-            stmt.executeUpdate(CREATE_INDEX);
+            stmt.executeUpdate(CREATE_TABLE_CFG);
+            stmt.executeUpdate(CREATE_INDEX_CFG);
+            stmt.executeUpdate(CREATE_TABLE_KW);
+            stmt.executeUpdate(CREATE_INDEX_KW);
         } catch (SQLException e) {
-            if (!e.getMessage().equals("table KEYWORDS already exists")) {
+            if (!e.getMessage().equals("table KEYWORDS already exists") &&
+                    !e.getMessage().equals("table CONFIG already exists")) {
                 e.printStackTrace();
                 return null;
             }
@@ -147,7 +181,7 @@ public class Main {
         return c;
     }
 
-    private static boolean loadDataFromDatabase(Connection c) {
+    private static boolean loadKeywordsData(Connection c) {
         Statement stmt = null;
         ResultSet rs = null;
         try {
@@ -172,6 +206,46 @@ public class Main {
                     keyword.getKeywords().add(kw);
                     keywords.add(keyword);
                 }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        } finally {
+            if (rs != null) {
+                try {
+                    rs.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+            if (stmt != null) {
+                try {
+                    stmt.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private static boolean loadConfigData(Connection c) {
+        Statement stmt = null;
+        ResultSet rs = null;
+        try {
+            stmt = c.createStatement();
+            rs = stmt.executeQuery(SELECT_CONFIG);
+            while ( rs.next() ) {
+                int chatId = rs.getInt(1);
+                boolean verb = rs.getBoolean(2);
+                int ttl = rs.getInt(3);
+
+                Config config = new Config();
+                config.setChatId(chatId);
+                config.setVerbose(verb);
+                config.setiTTL(ttl);
+                configs.add(config);
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -226,9 +300,20 @@ public class Main {
 
     private static void doCommandTLDR(ArrayList<Message> queueList, Message msg) {
         try {
+            Config temp = null;
+            for (Config config : configs) {
+                if (config.getChatId().equals(msg.getChat().getId())) {
+                    temp = config;
+                }
+            }
+
+            int response = msg.getChat().getId();
+            if (temp != null && !temp.getVerbose()) {
+                response = msg.getFrom().getId();
+            }
             for (Message oldMsg : queueList) {
                 if (oldMsg.getChat().getId().equals(msg.getChat().getId())) {
-                    String params = "chat_id=" + msg.getChat().getId() + "&from_chat_id=" + oldMsg.getChat().getId() + "&message_id=" + oldMsg.getMessage_id();
+                    String params = "chat_id=" + response + "&from_chat_id=" + oldMsg.getChat().getId() + "&message_id=" + oldMsg.getMessage_id();
                     getMoreData("forwardMessage", params);
                 }
             }
@@ -301,6 +386,18 @@ public class Main {
     }
 
     private static void doCommandRemove(Message msg, Connection c) {
+        Config temp = null;
+        for (Config config : configs) {
+            if (config.getChatId().equals(msg.getChat().getId())) {
+                temp = config;
+            }
+        }
+
+        int response = msg.getChat().getId();
+        if (temp != null && !temp.getVerbose()) {
+            response = msg.getFrom().getId();
+        }
+
         boolean removed = false;
         String rKeyword = "";
         if (msg.getText().length() > 8) {
@@ -321,7 +418,7 @@ public class Main {
 
                     if (kws.getKeywords().isEmpty()) {
                         try {
-                            String params = "chat_id=" + msg.getChat().getId() + "&text=" + URLEncoder.encode("Keywords list is empty.", "UTF-8");
+                            String params = "chat_id=" + response + "&text=" + URLEncoder.encode("Keywords list is empty.", "UTF-8");
                             getMoreData("sendMessage", params);
                         } catch (IOException e) {
                             e.printStackTrace();
@@ -356,9 +453,21 @@ public class Main {
     }
 
     private static void doCommandList(Message msg) {
+        Config temp = null;
+        for (Config config : configs) {
+            if (config.getChatId().equals(msg.getChat().getId())) {
+                temp = config;
+            }
+        }
+
+        int response = msg.getChat().getId();
+        if (temp != null && !temp.getVerbose()) {
+            response = msg.getFrom().getId();
+        }
+
         if (keywords.isEmpty()) {
             try {
-                String params = "chat_id=" + msg.getChat().getId() + "&text=" + URLEncoder.encode("Keywords list is empty.", "UTF-8");
+                String params = "chat_id=" + response + "&text=" + URLEncoder.encode("Keywords list is empty.", "UTF-8");
                 getMoreData("sendMessage", params);
             } catch (IOException e) {
                 e.printStackTrace();
@@ -369,7 +478,7 @@ public class Main {
                 if (kws.getChatId().equals(msg.getChat().getId())) {
                     if (kws.getKeywords().isEmpty()) {
                         try {
-                            String params = "chat_id=" + msg.getChat().getId() + "&text=" + URLEncoder.encode("Keywords list is empty.", "UTF-8");
+                            String params = "chat_id=" + response + "&text=" + URLEncoder.encode("Keywords list is empty.", "UTF-8");
                             getMoreData("sendMessage", params);
                         } catch (IOException e) {
                             e.printStackTrace();
@@ -381,7 +490,7 @@ public class Main {
                             responseList += kw + "\n";
                         }
                         try {
-                            String params = "chat_id=" + msg.getChat().getId() + "&text=" + URLEncoder.encode(responseList, "UTF-8");
+                            String params = "chat_id=" + response + "&text=" + URLEncoder.encode(responseList, "UTF-8");
                             getMoreData("sendMessage", params);
                         } catch (IOException e) {
                             e.printStackTrace();
@@ -394,12 +503,99 @@ public class Main {
         }
     }
 
-    private static void doCommandTTL(Message msg) {
+    private static void doCommandTTL(Message msg, Connection c) {
+        String time = "";
+        if (msg.getText().length() > 5) {
+            try {
+                time = msg.getText().toLowerCase();
+                time = trim(time.substring(5, Math.min(time.length(), 10)));
+            } catch (StringIndexOutOfBoundsException e) {
+                e.printStackTrace();
+            }
+        } else {
+            return;
+        }
 
+        if (time.length() > 0) {
+            try {
+                int value = Integer.parseInt(time);
+                Config temp = null;
+                for (Config config : configs) {
+                    if (config.getChatId().equals(msg.getChat().getId())) {
+                        config.setiTTL(value);
+                        temp = config;
+                    }
+                    break;
+                }
+
+                if (temp == null) {
+                    temp = new Config();
+                    temp.setChatId(msg.getChat().getId());
+                    temp.setVerbose(VERBOSE);
+                    temp.setiTTL(value);
+                    configs.add(temp);
+                }
+
+                PreparedStatement pstmt = null;
+                try {
+                    pstmt = c.prepareStatement(INSERT_CONFIG);
+                    pstmt.setInt(1, temp.getChatId());
+                    pstmt.setBoolean(2, temp.getVerbose());
+                    pstmt.setInt(3, temp.getiTTL());
+                    pstmt.executeUpdate();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                } finally {
+                    if (pstmt != null) {
+                        try {
+                            pstmt.close();
+                        } catch (SQLException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            } catch (NumberFormatException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
-    private static void doCommandVerbose(Message msg) {
+    private static void doCommandVerbose(Message msg, Connection c) {
+        Config temp = null;
+        for (Config config : configs) {
+            if (config.getChatId().equals(msg.getChat().getId())) {
+                config.setVerbose(!config.getVerbose());
+                temp = config;
+            }
+            break;
+        }
 
+        if (temp == null) {
+            temp = new Config();
+            temp.setChatId(msg.getChat().getId());
+            temp.setVerbose(!VERBOSE);
+            temp.setiTTL(TTL);
+            configs.add(temp);
+        }
+
+        PreparedStatement pstmt = null;
+        try {
+            pstmt = c.prepareStatement(INSERT_CONFIG);
+            pstmt.setInt(1, temp.getChatId());
+            pstmt.setBoolean(2, temp.getVerbose());
+            pstmt.setInt(3, temp.getiTTL());
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            if (pstmt != null) {
+                try {
+                    pstmt.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
     }
 
     // Telegram sends multiple spaces as 32 160 32 160 so the usual trim won't work
