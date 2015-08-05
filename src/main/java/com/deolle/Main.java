@@ -314,9 +314,16 @@ public class Main {
             if (temp != null && !temp.getVerbose()) {
                 response = msg.getFrom().getId();
             }
-            String header = "Agh! So much gossip, how disgusting!";
-            if (queueList.isEmpty()) {
-                header = "Nothing to gossip about, how disgusting!";
+            String header = "Nothing to gossip about, how disgusting!";
+            boolean found = false;
+            for (Message msgTemp : queueList) {
+                if (msg.getChat().getId().equals(msgTemp.getChat().getId())) {
+                    found = true;
+                    break;
+                }
+            }
+            if (found) {
+                header = "Agh! So much gossip, how disgusting!";
             }
             try {
                 String params = "chat_id=" + response + "&text=" + URLEncoder.encode(header, "UTF-8");
