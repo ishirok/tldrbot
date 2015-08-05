@@ -7,6 +7,7 @@ import com.google.gson.reflect.TypeToken;
 import javax.net.ssl.HttpsURLConnection;
 import java.io.*;
 import java.lang.reflect.Type;
+import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.sql.*;
@@ -74,6 +75,11 @@ public class Main {
                 sUpdates = getMoreData("getUpdates", "offset=" + uid);
             } catch (IOException e) {
                 e.printStackTrace();
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException ie) {
+                    ie.printStackTrace();
+                }
                 continue;
             }
 
@@ -103,8 +109,7 @@ public class Main {
                         String msgText = msg.getText().toLowerCase();
                         for (Keyword kws : keywords) {
                             if (kws.getChatId().equals(msg.getChat().getId())) {
-                                queueList.addAll(kws.getKeywords().stream().filter(kw -> msgText.contains(kw)).map(kw -> msg).collect(Collectors.toList()));
-                                break;
+                                queueList.addAll(kws.getKeywords().stream().filter(kw -> msgText.contains(kw)).map(kw -> msg).distinct().collect(Collectors.toList()));
                             }
                         }
                     }
@@ -118,14 +123,12 @@ public class Main {
                 e.printStackTrace();
             }
 
-            Iterator<Message> iter = queueList.iterator();
-            while (iter.hasNext()) {
-                Message msg = iter.next();
+            for (int i = queueList.size() - 1; i >= 0; i--) {
                 Calendar timeMargin = Calendar.getInstance();
 
                 Config temp = null;
                 for (Config config : configs) {
-                    if (config.getChatId().equals(msg.getChat().getId())) {
+                    if (config.getChatId().equals(queueList.get(i).getChat().getId())) {
                         temp = config;
                     }
                 }
@@ -135,8 +138,8 @@ public class Main {
                     ttl = temp.getiTTL();
                 }
                 timeMargin.add(Calendar.HOUR, -ttl);
-                if (msg.getDate().before(timeMargin.getTime())) {
-                    queueList.remove(msg);
+                if (queueList.get(i).getDate().before(timeMargin.getTime())) {
+                    queueList.remove(i);
                 }
             }
         }
@@ -311,12 +314,23 @@ public class Main {
             if (temp != null && !temp.getVerbose()) {
                 response = msg.getFrom().getId();
             }
+            String header = "Agh! So much gossip, how disgusting!";
+            if (queueList.isEmpty()) {
+                header = "Nothing to gossip about, how disgusting!";
+            }
+            try {
+                String params = "chat_id=" + response + "&text=" + URLEncoder.encode(header, "UTF-8");
+                getMoreData("sendMessage", params);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
             for (Message oldMsg : queueList) {
                 if (oldMsg.getChat().getId().equals(msg.getChat().getId())) {
                     String params = "chat_id=" + response + "&from_chat_id=" + oldMsg.getChat().getId() + "&message_id=" + oldMsg.getMessage_id();
                     getMoreData("forwardMessage", params);
                 }
             }
+
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -418,7 +432,7 @@ public class Main {
 
                     if (kws.getKeywords().isEmpty()) {
                         try {
-                            String params = "chat_id=" + response + "&text=" + URLEncoder.encode("Keywords list is empty.", "UTF-8");
+                            String params = "chat_id=" + response + "&text=" + URLEncoder.encode("Keywords' list is empty.", "UTF-8");
                             getMoreData("sendMessage", params);
                         } catch (IOException e) {
                             e.printStackTrace();
