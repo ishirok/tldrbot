@@ -600,6 +600,21 @@ public class Main {
             configs.add(temp);
         }
 
+        int response = msg.getChat().getId();
+        String responseMode = "Verbose mode activated. Now I'll answer in public chat, how disgusting...";
+        if (temp != null && !temp.getVerbose()) {
+            //response = msg.getFrom().getId();
+            responseMode = "Verbose mode disabled. Now I'll answer in private chat, how disgusting...";
+        }
+
+        try {
+            String params = "chat_id=" + response + "&text=" + URLEncoder.encode(responseMode, "UTF-8");
+            getMoreData("sendMessage", params);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
+        }
+
         PreparedStatement pstmt = null;
         try {
             pstmt = c.prepareStatement(INSERT_CONFIG);
