@@ -1,15 +1,13 @@
-package com.deolle;
+package com.deolle.tldrbot.dto;
 
 import java.util.ArrayList;
+import java.util.List;
 
-/**
- * Created by AlexAran on 27/07/2015.
- */
-public class Keyword {
+public class KeywordDto {
     private Integer chatId;
-    private ArrayList<String> keywords;
+    private List<String> keywords;
 
-    public Keyword() {
+    public KeywordDto() {
         super();
         keywords = new ArrayList<>();
     }
@@ -22,11 +20,11 @@ public class Keyword {
         this.chatId = chatId;
     }
 
-    public ArrayList<String> getKeywords() {
+    public List<String> getKeywords() {
         return keywords;
     }
 
-    public void setKeywords(ArrayList<String> keywords) {
+    public void setKeywords(List<String> keywords) {
         this.keywords = keywords;
     }
 }

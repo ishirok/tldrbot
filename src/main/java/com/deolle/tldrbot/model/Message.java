@@ -1,11 +1,5 @@
-package com.deolle.telegram;
+package com.deolle.tldrbot.model;
 
-import java.util.Calendar;
-import java.util.Date;
-
-/**
- * Created by AlexAran on 26/07/2015.
- */
 public class Message {
 
     private Integer message_id;
@@ -48,10 +42,8 @@ public class Message {
         this.from = from;
     }
 
-    public Date getDate() {
-        Calendar cal = Calendar.getInstance();
-        cal.setTimeInMillis(date * 1000L);
-        return cal.getTime();
+    public Integer getDate() {
+        return date;
     }
 
     public void setDate(Integer date) {

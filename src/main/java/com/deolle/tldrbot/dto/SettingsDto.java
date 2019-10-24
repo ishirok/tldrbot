@@ -1,9 +1,6 @@
-package com.deolle;
+package com.deolle.tldrbot.dto;
 
-/**
- * Created by AlexAran on 02/08/2015.
- */
-public class Config {
+public class SettingsDto {
 
     private Integer chatId;
     private Boolean verbose;

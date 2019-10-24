@@ -1,8 +1,5 @@
-package com.deolle.telegram;
+package com.deolle.tldrbot.model;
 
-/**
- * Created by AlexAran on 26/07/2015.
- */
 public class Response<T> {
     private Boolean ok;
     private T result;
