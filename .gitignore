@@ -230,3 +230,5 @@ gradle-app.setting
 **/build/
 
 # End of https://www.gitignore.io/api/linux,maven,gradle,windows,eclipse,intellij+all
+
+**/logs/

@@ -16,6 +16,8 @@ import java.net.URLEncoder;
 import java.sql.*;
 import java.util.*;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -26,6 +28,8 @@ public class TldrBotManager {
     private static String TELEGRAMAP                = "https://api.telegram.org/bot";
     private static ArrayList<KeywordDto> keywords      = new ArrayList<>();
     private static ArrayList<SettingsDto> configs        = new ArrayList<>();
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(TldrBotManager.class);
 
     @Value("${tldr.botkey}")
     private String botKey;
@@ -63,7 +67,7 @@ public class TldrBotManager {
 
     @Scheduled(fixedRate = 2000)
     public void checkForNewMessages() {
-        System.out.println("Cron started!");
+        LOGGER.debug("Cron started!");
         ArrayList<Message> queueList = new ArrayList<>();
 
         if (c == null) {
