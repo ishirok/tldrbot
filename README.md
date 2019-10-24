@@ -1,6 +1,6 @@
 # TLDRBot
 Telegram bot that tracks keywords on a conversation so
-later you can ask a summary
+later you can ask for a summary
 
 
 You can use it by joining a conversation with @TLDRBot
