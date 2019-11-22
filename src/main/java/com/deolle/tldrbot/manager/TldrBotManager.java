@@ -5,6 +5,7 @@ import com.deolle.tldrbot.dto.SettingsDto;
 import com.deolle.tldrbot.model.Message;
 import com.deolle.tldrbot.model.Response;
 import com.deolle.tldrbot.model.Update;
+import com.deolle.tldrbot.repository.TldrBotRepository;
 import com.google.gson.Gson;
 
 import com.google.gson.reflect.TypeToken;
@@ -34,34 +35,15 @@ public class TldrBotManager {
     @Value("${tldr.botkey}")
     private String botKey;
 
-    private static final String CREATE_TABLE_KW     = "CREATE TABLE KEYWORDS " +
-                                                        "(CHAT_ID   INT         NOT NULL, " +
-                                                        "KEYWORD    TEXT        NOT NULL, " +
-                                                        "CONSTRAINT KW_PK       PRIMARY KEY " +
-                                                        "(CHAT_ID, KEYWORD) ON  CONFLICT IGNORE, " +
-                                                        "CONSTRAINT KW_UQ       UNIQUE " +
-                                                        "(CHAT_ID, KEYWORD) ON  CONFLICT IGNORE);";
-    private static final String CREATE_TABLE_CFG    = "CREATE TABLE CONFIG " +
-                                                        "(CHAT_ID   INT         PRIMARY KEY ON CONFLICT REPLACE " +
-                                                                                "UNIQUE ON CONFLICT REPLACE " +
-                                                                                "NOT NULL, " +
-                                                        "VERBOSE    BOOLEAN, " +
-                                                        "TTL        INT);";
-
-    private static final String CREATE_INDEX_KW     = "CREATE INDEX KW_IDX  ON  KEYWORDS    (CHAT_ID, KEYWORD);";
-    private static final String CREATE_INDEX_CFG    = "CREATE INDEX CFG_IDX ON  CONFIG      (CHAT_ID);";
-
-    private static final String SELECT_KEYWORDS     = "SELECT CHAT_ID, KEYWORD FROM KEYWORDS;";
     private static final String INSERT_KEYWORD      = "INSERT INTO  KEYWORDS (CHAT_ID, KEYWORD) VALUES ( ? , ? );";
     private static final String DELETE_KEYWORD      = "DELETE FROM  KEYWORDS WHERE CHAT_ID = ? AND KEYWORD = ? ;";
 
-    private static final String SELECT_CONFIG       = "SELECT CHAT_ID, VERBOSE, TTL FROM CONFIG;";
     private static final String INSERT_CONFIG       = "REPLACE INTO CONFIG (CHAT_ID, VERBOSE, TTL) VALUES ( ? , ? , ? );";
 
     private static final boolean VERBOSE            = true;
     private static final int     TTL                = 8;
 
-    private static final Connection c = openDatabase();
+    private Connection c = TldrBotRepository.openDatabase();
 
     private static Integer uid = 0;
 
@@ -69,16 +51,17 @@ public class TldrBotManager {
     public void checkForNewMessages() {
         LOGGER.debug("Cron started!");
         ArrayList<Message> queueList = new ArrayList<>();
+        TldrBotRepository tldrBotRepository = new TldrBotRepository();
 
         if (c == null) {
             return;
         }
 
-        if (!loadKeywordsData(c)) {
+        if (!tldrBotRepository.loadKeywordsData(c, keywords)) {
             return;
         }
 
-        if (!loadConfigData(c)) {
+        if (!tldrBotRepository.loadConfigData(c, configs)) {
             return;
         }
 
@@ -147,128 +130,6 @@ public class TldrBotManager {
             }
             uid = upd.getUpdate_id() + 1;
         }
-    }
-
-    private static Connection openDatabase() {
-        Connection c = null;
-        Statement stmt = null;
-        try {
-            Class.forName("org.sqlite.JDBC");
-            c = DriverManager.getConnection("jdbc:sqlite:tldr.db");
-            c.setAutoCommit(true);
-
-            stmt = c.createStatement();
-            stmt.executeUpdate(CREATE_TABLE_CFG);
-            stmt.executeUpdate(CREATE_INDEX_CFG);
-            stmt.executeUpdate(CREATE_TABLE_KW);
-            stmt.executeUpdate(CREATE_INDEX_KW);
-        } catch (SQLException e) {
-            if (!e.getMessage().equals("table KEYWORDS already exists") &&
-                    !e.getMessage().equals("table CONFIG already exists")) {
-                e.printStackTrace();
-                return null;
-            }
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-            return null;
-        } finally {
-            try {
-                stmt.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-        }
-
-        return c;
-    }
-
-    private boolean loadKeywordsData(Connection c) {
-        Statement stmt = null;
-        ResultSet rs = null;
-        try {
-            stmt = c.createStatement();
-            rs = stmt.executeQuery(SELECT_KEYWORDS);
-            while ( rs.next() ) {
-                int chatId = rs.getInt(1);
-                String kw = rs.getString(2);
-
-                KeywordDto keyword = null;
-                for (KeywordDto tempKW : keywords) {
-                    if (tempKW.getChatId().equals(chatId)) {
-                        keyword = tempKW;
-                        break;
-                    }
-                }
-                if (keyword != null) {
-                    keyword.getKeywords().add(kw);
-                } else {
-                    keyword = new KeywordDto();
-                    keyword.setChatId(chatId);
-                    keyword.getKeywords().add(kw);
-                    keywords.add(keyword);
-                }
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return false;
-        } finally {
-            if (rs != null) {
-                try {
-                    rs.close();
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-            }
-            if (stmt != null) {
-                try {
-                    stmt.close();
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-
-        return true;
-    }
-
-    private boolean loadConfigData(Connection c) {
-        Statement stmt = null;
-        ResultSet rs = null;
-        try {
-            stmt = c.createStatement();
-            rs = stmt.executeQuery(SELECT_CONFIG);
-            while ( rs.next() ) {
-                int chatId = rs.getInt(1);
-                boolean verb = rs.getBoolean(2);
-                int ttl = rs.getInt(3);
-
-                SettingsDto config = new SettingsDto();
-                config.setChatId(chatId);
-                config.setVerbose(verb);
-                config.setiTTL(ttl);
-                configs.add(config);
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return false;
-        } finally {
-            if (rs != null) {
-                try {
-                    rs.close();
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-            }
-            if (stmt != null) {
-                try {
-                    stmt.close();
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-
-        return true;
     }
 
     private String getMoreData(String method, String param) throws IOException {
