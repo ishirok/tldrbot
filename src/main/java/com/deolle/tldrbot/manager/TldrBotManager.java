@@ -85,7 +85,7 @@ public class TldrBotManager {
 
     String sUpdates = "";
     try {
-      sUpdates = telegramService.getMoreData("getUpdates", "offset=" + uid);
+      sUpdates = telegramService.getUpdates("offset=" + uid);
     } catch (IOException e) {
       e.printStackTrace();
       try {
@@ -156,14 +156,14 @@ public class TldrBotManager {
       }
       try {
         String params = "chat_id=" + response + "&text=" + URLEncoder.encode(header, "UTF-8");
-        telegramService.getMoreData("sendMessage", params);
+        telegramService.sendMessage(params);
       } catch (IOException e) {
         e.printStackTrace();
       }
       for (Message oldMsg : queueList) {
         if (oldMsg.getChat().getId().equals(msg.getChat().getId())) {
           String params = "chat_id=" + response + "&from_chat_id=" + oldMsg.getChat().getId() + "&message_id=" + oldMsg.getMessage_id();
-          telegramService.getMoreData("forwardMessage", params);
+          telegramService.forwardMessage(params);
         }
       }
 
@@ -269,7 +269,7 @@ public class TldrBotManager {
           if (kws.getKeywords().isEmpty()) {
             try {
               String params = "chat_id=" + response + "&text=" + URLEncoder.encode("Keywords' list is empty.", "UTF-8");
-              telegramService.getMoreData("sendMessage", params);
+              telegramService.sendMessage(params);
             } catch (IOException e) {
               e.printStackTrace();
               continue;
@@ -319,7 +319,7 @@ public class TldrBotManager {
     if (keywords.isEmpty()) {
       try {
         String params = "chat_id=" + response + "&text=" + URLEncoder.encode("Keywords list is empty.", "UTF-8");
-        telegramService.getMoreData("sendMessage", params);
+        telegramService.sendMessage(params);
       } catch (IOException e) {
         e.printStackTrace();
         return;
@@ -330,7 +330,7 @@ public class TldrBotManager {
           if (kws.getKeywords().isEmpty()) {
             try {
               String params = "chat_id=" + response + "&text=" + URLEncoder.encode("Keywords list is empty.", "UTF-8");
-              telegramService.getMoreData("sendMessage", params);
+              telegramService.sendMessage(params);
             } catch (IOException e) {
               e.printStackTrace();
               continue;
@@ -342,7 +342,7 @@ public class TldrBotManager {
             }
             try {
               String params = "chat_id=" + response + "&text=" + URLEncoder.encode(responseList, "UTF-8");
-              telegramService.getMoreData("sendMessage", params);
+              telegramService.sendMessage(params);
             } catch (IOException e) {
               e.printStackTrace();
               continue;
@@ -438,7 +438,7 @@ public class TldrBotManager {
 
     try {
       String params = "chat_id=" + response + "&text=" + URLEncoder.encode(responseMode, "UTF-8");
-      telegramService.getMoreData("sendMessage", params);
+      telegramService.sendMessage(params);
     } catch (IOException e) {
       e.printStackTrace();
       return;

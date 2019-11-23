@@ -18,28 +18,42 @@ public class TelegramService {
   @Value("${tldr.botKey}")
   private String BOT_KEY;
 
-  public String getMoreData(String method, String param) throws IOException {
-    String sURL = TELEGRAM_API + BOT_KEY + "/";
+  public String sendMessage(String param) throws IOException {
+    return invokeTelegramApi("sendMessage", param);
+  }
 
-    URL url = new URL(sURL + method);
-    HttpsURLConnection uc = (HttpsURLConnection) url.openConnection();
-    uc.setRequestMethod("POST");
-    uc.setDoOutput(true);
-    uc.setDoInput(true);
-    uc.setUseCaches(false);
-    uc.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-    uc.setReadTimeout(5 * 1000);
-    uc.connect();
+  public String getUpdates(String param) throws IOException {
+    return invokeTelegramApi("getUpdates", param);
+  }
 
-    DataOutputStream printout = new DataOutputStream(uc.getOutputStream());
-    printout.write(param.getBytes());
-    printout.flush();
+  public String forwardMessage(String param) throws IOException {
+    return invokeTelegramApi("forwardMessage", param);
+  }
 
-    BufferedReader reader = new BufferedReader(new InputStreamReader(uc.getInputStream()));
+  private String invokeTelegramApi(String method, String param) throws IOException {
+    String textUrl = TELEGRAM_API + BOT_KEY + "/";
+    URL url = new URL(textUrl + method);
+
+    HttpsURLConnection httpsURLConnection = (HttpsURLConnection) url.openConnection();
+    httpsURLConnection.setRequestMethod("POST");
+    httpsURLConnection.setDoOutput(true);
+    httpsURLConnection.setDoInput(true);
+    httpsURLConnection.setUseCaches(false);
+    httpsURLConnection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+    httpsURLConnection.setReadTimeout(5 * 1000);
+    httpsURLConnection.connect();
+
+    DataOutputStream dataOutputStream = new DataOutputStream(httpsURLConnection.getOutputStream());
+    dataOutputStream.write(param.getBytes());
+    dataOutputStream.flush();
+
+    BufferedReader bufferedReader =
+        new BufferedReader(new InputStreamReader(httpsURLConnection.getInputStream()));
+
     StringBuilder stringBuilder = new StringBuilder();
 
     String line;
-    while ((line = reader.readLine()) != null) {
+    while ((line = bufferedReader.readLine()) != null) {
       stringBuilder.append(line + "\n");
     }
 
