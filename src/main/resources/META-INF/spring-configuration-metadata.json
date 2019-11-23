@@ -1,0 +1,12 @@
+{
+  "properties": [
+    {
+      "name": "tldr.botKey",
+      "type": "java.lang.String"
+    },
+    {
+      "name": "tldr.telegramApi",
+      "type": "java.lang.String"
+    }
+  ]
+}

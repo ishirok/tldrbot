@@ -1,5 +1,6 @@
 tldr:
-  botkey: YOUR_KEY_HERE
+  botKey: YOUR_KEY_HERE
+  telegramApi: https://api.telegram.org/bot
 logging:
   file:
     name: logs/tldrbot.log

@@ -6,34 +6,29 @@ import com.deolle.tldrbot.model.Message;
 import com.deolle.tldrbot.model.Response;
 import com.deolle.tldrbot.model.Update;
 import com.deolle.tldrbot.repository.TldrBotRepository;
+import com.deolle.tldrbot.service.TelegramService;
 import com.google.gson.Gson;
 
 import com.google.gson.reflect.TypeToken;
-import javax.net.ssl.HttpsURLConnection;
 import java.io.*;
 import java.lang.reflect.Type;
-import java.net.URL;
 import java.net.URLEncoder;
 import java.sql.*;
 import java.util.*;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Component
 public class TldrBotManager {
 
-    private static String TELEGRAMAP                = "https://api.telegram.org/bot";
     private static ArrayList<KeywordDto> keywords      = new ArrayList<>();
     private static ArrayList<SettingsDto> configs        = new ArrayList<>();
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TldrBotManager.class);
-
-    @Value("${tldr.botkey}")
-    private String botKey;
 
     private static final String INSERT_KEYWORD      = "INSERT INTO  KEYWORDS (CHAT_ID, KEYWORD) VALUES ( ? , ? );";
     private static final String DELETE_KEYWORD      = "DELETE FROM  KEYWORDS WHERE CHAT_ID = ? AND KEYWORD = ? ;";
@@ -46,6 +41,9 @@ public class TldrBotManager {
     private Connection c = TldrBotRepository.openDatabase();
 
     private static Integer uid = 0;
+
+    @Autowired
+    private TelegramService telegramService;
 
     @Scheduled(fixedRate = 2000)
     public void checkForNewMessages() {
@@ -87,7 +85,7 @@ public class TldrBotManager {
 
         String sUpdates = "";
         try {
-            sUpdates = getMoreData("getUpdates", "offset=" + uid);
+            sUpdates = telegramService.getMoreData("getUpdates", "offset=" + uid);
         } catch (IOException e) {
             e.printStackTrace();
             try {
@@ -132,34 +130,6 @@ public class TldrBotManager {
         }
     }
 
-    private String getMoreData(String method, String param) throws IOException {
-        String sURL = TELEGRAMAP + botKey + "/";
-
-        URL url = new URL(sURL + method);
-        HttpsURLConnection uc = (HttpsURLConnection) url.openConnection();
-        uc.setRequestMethod("POST");
-        uc.setDoOutput(true);
-        uc.setDoInput(true);
-        uc.setUseCaches(false);
-        uc.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-        uc.setReadTimeout(5 * 1000);
-        uc.connect();
-
-        DataOutputStream printout = new DataOutputStream(uc.getOutputStream());
-        printout.write(param.getBytes());
-        printout.flush();
-
-        BufferedReader reader = new BufferedReader(new InputStreamReader(uc.getInputStream()));
-        StringBuilder stringBuilder = new StringBuilder();
-
-        String line;
-        while ((line = reader.readLine()) != null) {
-            stringBuilder.append(line + "\n");
-        }
-
-        return stringBuilder.toString();
-    }
-
     private void doCommandTLDR(ArrayList<Message> queueList, Message msg) {
         try {
             SettingsDto temp = null;
@@ -186,14 +156,14 @@ public class TldrBotManager {
             }
             try {
                 String params = "chat_id=" + response + "&text=" + URLEncoder.encode(header, "UTF-8");
-                getMoreData("sendMessage", params);
+                telegramService.getMoreData("sendMessage", params);
             } catch (IOException e) {
                 e.printStackTrace();
             }
             for (Message oldMsg : queueList) {
                 if (oldMsg.getChat().getId().equals(msg.getChat().getId())) {
                     String params = "chat_id=" + response + "&from_chat_id=" + oldMsg.getChat().getId() + "&message_id=" + oldMsg.getMessage_id();
-                    getMoreData("forwardMessage", params);
+                    telegramService.getMoreData("forwardMessage", params);
                 }
             }
 
@@ -299,7 +269,7 @@ public class TldrBotManager {
                     if (kws.getKeywords().isEmpty()) {
                         try {
                             String params = "chat_id=" + response + "&text=" + URLEncoder.encode("Keywords' list is empty.", "UTF-8");
-                            getMoreData("sendMessage", params);
+                            telegramService.getMoreData("sendMessage", params);
                         } catch (IOException e) {
                             e.printStackTrace();
                             continue;
@@ -349,7 +319,7 @@ public class TldrBotManager {
         if (keywords.isEmpty()) {
             try {
                 String params = "chat_id=" + response + "&text=" + URLEncoder.encode("Keywords list is empty.", "UTF-8");
-                getMoreData("sendMessage", params);
+                telegramService.getMoreData("sendMessage", params);
             } catch (IOException e) {
                 e.printStackTrace();
                 return;
@@ -360,7 +330,7 @@ public class TldrBotManager {
                     if (kws.getKeywords().isEmpty()) {
                         try {
                             String params = "chat_id=" + response + "&text=" + URLEncoder.encode("Keywords list is empty.", "UTF-8");
-                            getMoreData("sendMessage", params);
+                            telegramService.getMoreData("sendMessage", params);
                         } catch (IOException e) {
                             e.printStackTrace();
                             continue;
@@ -372,7 +342,7 @@ public class TldrBotManager {
                         }
                         try {
                             String params = "chat_id=" + response + "&text=" + URLEncoder.encode(responseList, "UTF-8");
-                            getMoreData("sendMessage", params);
+                            telegramService.getMoreData("sendMessage", params);
                         } catch (IOException e) {
                             e.printStackTrace();
                             continue;
@@ -468,7 +438,7 @@ public class TldrBotManager {
 
         try {
             String params = "chat_id=" + response + "&text=" + URLEncoder.encode(responseMode, "UTF-8");
-            getMoreData("sendMessage", params);
+            telegramService.getMoreData("sendMessage", params);
         } catch (IOException e) {
             e.printStackTrace();
             return;
