@@ -4,27 +4,23 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class KeywordDto {
-    private Integer chatId;
-    private List<String> keywords;
+  private Integer chatId;
+  private List<String> keywords;
 
-    public KeywordDto() {
-        super();
-        keywords = new ArrayList<>();
-    }
+  public KeywordDto() {
+    super();
+    keywords = new ArrayList<>();
+  }
 
-    public Integer getChatId() {
-        return chatId;
-    }
+  public Integer getChatId() {
+    return chatId;
+  }
 
-    public void setChatId(Integer chatId) {
-        this.chatId = chatId;
-    }
+  public void setChatId(Integer chatId) {
+    this.chatId = chatId;
+  }
 
-    public List<String> getKeywords() {
-        return keywords;
-    }
-
-    public void setKeywords(List<String> keywords) {
-        this.keywords = keywords;
-    }
+  public List<String> getKeywords() {
+    return keywords;
+  }
 }
