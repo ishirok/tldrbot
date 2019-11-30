@@ -1,4 +1,4 @@
-package com.deolle.tldrbot.service;
+package org.telegram.service;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;

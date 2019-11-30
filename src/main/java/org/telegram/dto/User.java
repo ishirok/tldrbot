@@ -1,4 +1,4 @@
-package com.deolle.tldrbot.model;
+package org.telegram.dto;
 
 public class User {
   Integer id;

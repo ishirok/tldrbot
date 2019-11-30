@@ -2,11 +2,11 @@ package com.deolle.tldrbot.manager;
 
 import com.deolle.tldrbot.dto.KeywordDto;
 import com.deolle.tldrbot.dto.SettingsDto;
-import com.deolle.tldrbot.model.Message;
-import com.deolle.tldrbot.model.Response;
-import com.deolle.tldrbot.model.Update;
+import org.telegram.dto.Message;
+import org.telegram.dto.Response;
+import org.telegram.dto.Update;
 import com.deolle.tldrbot.repository.TldrBotRepository;
-import com.deolle.tldrbot.service.TelegramService;
+import org.telegram.service.TelegramService;
 import com.google.gson.Gson;
 
 import com.google.gson.reflect.TypeToken;
