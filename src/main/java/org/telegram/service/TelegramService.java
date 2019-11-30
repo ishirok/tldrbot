@@ -7,10 +7,8 @@ import java.io.InputStreamReader;
 import java.net.URL;
 import javax.net.ssl.HttpsURLConnection;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
 
-@Service
-public class TelegramService {
+public class TelegramService implements com.deolle.tldrbot.service.TelegramService {
 
   @Value("${tldr.telegramApi}")
   private String TELEGRAM_API;
