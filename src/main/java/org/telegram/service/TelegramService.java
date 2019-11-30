@@ -18,19 +18,19 @@ public class TelegramService {
   @Value("${tldr.botKey}")
   private String BOT_KEY;
 
-  public String sendMessage(String param) throws IOException {
-    return invokeTelegramApi("sendMessage", param);
+  public String sendMessage(String parameters) throws IOException {
+    return invokeTelegramApiTo("sendMessage", parameters);
   }
 
-  public String getUpdates(String param) throws IOException {
-    return invokeTelegramApi("getUpdates", param);
+  public String getUpdates(String parameters) throws IOException {
+    return invokeTelegramApiTo("getUpdates", parameters);
   }
 
-  public String forwardMessage(String param) throws IOException {
-    return invokeTelegramApi("forwardMessage", param);
+  public String forwardMessage(String parameters) throws IOException {
+    return invokeTelegramApiTo("forwardMessage", parameters);
   }
 
-  private String invokeTelegramApi(String method, String param) throws IOException {
+  private String invokeTelegramApiTo(String method, String parameters) throws IOException {
     String textUrl = TELEGRAM_API + BOT_KEY + "/";
     URL url = new URL(textUrl + method);
 
@@ -44,7 +44,7 @@ public class TelegramService {
     httpsURLConnection.connect();
 
     DataOutputStream dataOutputStream = new DataOutputStream(httpsURLConnection.getOutputStream());
-    dataOutputStream.write(param.getBytes());
+    dataOutputStream.write(parameters.getBytes());
     dataOutputStream.flush();
 
     BufferedReader bufferedReader =
@@ -52,9 +52,10 @@ public class TelegramService {
 
     StringBuilder stringBuilder = new StringBuilder();
 
-    String line;
-    while ((line = bufferedReader.readLine()) != null) {
-      stringBuilder.append(line + "\n");
+    String responseLine;
+    while ((responseLine = bufferedReader.readLine()) != null) {
+      stringBuilder.append(responseLine);
+      stringBuilder.append("\n");
     }
 
     return stringBuilder.toString();
