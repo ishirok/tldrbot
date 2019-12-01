@@ -7,6 +7,8 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,8 +70,9 @@ public class TldrBotRepository {
     return connection;
   }
 
-  public boolean loadKeywordsData(Connection connection, List<Keyword> keywords) {
+  public List<Keyword> loadKeywordsData(Connection connection) {
     LOGGER.debug("*** Initiating load of keywords from database ***");
+    List<Keyword> keywords = new ArrayList<>();
     Statement statement = null;
     ResultSet resultSet = null;
     try {
@@ -101,7 +104,7 @@ public class TldrBotRepository {
       }
     } catch (SQLException e) {
       e.printStackTrace();
-      return false;
+      return Collections.emptyList();
     } finally {
       if (resultSet != null) {
         try {
@@ -119,10 +122,11 @@ public class TldrBotRepository {
       }
     }
 
-    return true;
+    return keywords;
   }
 
-  public boolean loadSettingsData(Connection connection, List<Setting> settings) {
+  public List<Setting> loadSettingsData(Connection connection) {
+    List<Setting> settings = new ArrayList<>();
     Statement statement = null;
     ResultSet resultSet = null;
     try {
@@ -141,7 +145,7 @@ public class TldrBotRepository {
       }
     } catch (SQLException e) {
       e.printStackTrace();
-      return false;
+      return Collections.emptyList();
     } finally {
       if (resultSet != null) {
         try {
@@ -159,6 +163,6 @@ public class TldrBotRepository {
       }
     }
 
-    return true;
+    return settings;
   }
 }

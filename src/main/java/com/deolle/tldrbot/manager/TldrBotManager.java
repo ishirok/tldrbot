@@ -3,7 +3,11 @@ package com.deolle.tldrbot.manager;
 import com.deolle.tldrbot.persistence.dto.Keyword;
 import com.deolle.tldrbot.persistence.dto.Setting;
 import com.deolle.tldrbot.service.TelegramService;
-import org.telegram.dto.Message;
+import com.deolle.tldrbot.vo.MessageVo;
+import com.deolle.tldrbot.vo.UpdateVo;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import org.springframework.beans.factory.annotation.Value;
 import org.telegram.dto.Response;
 import org.telegram.dto.Update;
 import com.deolle.tldrbot.persistence.repository.TldrBotRepository;
@@ -25,8 +29,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class TldrBotManager {
 
-  private static ArrayList<Keyword> keywords      = new ArrayList<>();
-  private static ArrayList<Setting> settings = new ArrayList<>();
+  private static List<Keyword> keywords = new ArrayList<>();
+  private static List<Setting> settings = new ArrayList<>();
 
   private static final Logger LOGGER = LoggerFactory.getLogger(TldrBotManager.class);
 
@@ -35,12 +39,17 @@ public class TldrBotManager {
 
   private static final String INSERT_CONFIG       = "REPLACE INTO CONFIG (CHAT_ID, VERBOSE, TTL) VALUES ( ? , ? , ? );";
 
-  private static final boolean VERBOSE            = true;
-  private static final int     TTL                = 8;
+  @Value("${tldr.verbose}")
+  private boolean VERBOSE;
 
-  private static Connection c = TldrBotRepository.openDatabase();
+  @Value("${tldr.ttl}")
+  private int TTL;
 
-  private static Integer uid = 0;
+  private static Connection connection = TldrBotRepository.openDatabase();
+
+  private static Integer lastUpdateId = 0;
+
+  private static List<MessageVo> queueList = new ArrayList<>();
 
   private TelegramService telegramService;
 
@@ -56,114 +65,116 @@ public class TldrBotManager {
   private static void initializeTldrBot() {
     TldrBotRepository tldrBotRepository = new TldrBotRepository();
 
-    if (c == null) {
+    if (connection == null) {
       return;
     }
-
-    if (!tldrBotRepository.loadKeywordsData(c, keywords)) {
-      return;
-    }
-
-    if (!tldrBotRepository.loadSettingsData(c, settings)) {
-      return;
-    }
+    keywords = tldrBotRepository.loadKeywordsData(connection);
+    settings = tldrBotRepository.loadSettingsData(connection);
   }
 
   @Scheduled(fixedRate = 2000)
-  public void checkForNewMessages() {
-    LOGGER.debug("Cron started!");
-    ArrayList<Message> queueList = new ArrayList<>();
+  public void manageNewMessages() {
+    queueList = keepOnlyRecentMessagesOnQueue(queueList);
 
-    for (int i = queueList.size() - 1; i >= 0; i--) {
-      Calendar timeMargin = Calendar.getInstance();
+    List<UpdateVo> updates = getUpdates(lastUpdateId);
 
-      Setting temp = null;
-      for (Setting setting : settings) {
-        if (setting.getChatId().equals(queueList.get(i).getChat().getId())) {
-          temp = setting;
-        }
-      }
+    handleNewMessages(updates);
+  }
 
-      int ttl = TTL;
-      if (temp != null) {
-        ttl = temp.getiTTL();
-      }
-      timeMargin.add(Calendar.HOUR, -ttl);
-      if (queueList.get(i).getDate() < timeMargin.getTime().getTime()/1000L) {
-        queueList.remove(i);
-      }
-    }
+  private void handleNewMessages(List<UpdateVo> updates) {
+    for (UpdateVo updateVo : updates) {
+      MessageVo messageVo = updateVo.getMessageVo();
 
-    String sUpdates = "";
-    try {
-      sUpdates = telegramService.getUpdates("offset=" + uid);
-    } catch (IOException e) {
-      e.printStackTrace();
-      try {
-        Thread.sleep(2000);
-      } catch (InterruptedException ie) {
-        ie.printStackTrace();
-      }
-    }
-
-    Gson gs = new Gson();
-    Type responseType = new TypeToken<Response<Update[]>>() {}.getType();
-    Response<Update[]> updatesResponse = gs.fromJson(sUpdates, responseType);
-
-    for (Update upd : updatesResponse.getResult()) {
-      Message msg = upd.getMessage();
-
-      if (msg.getText() != null) {
-        if (msg.getText().startsWith("/")) {
-          if (msg.getText().equalsIgnoreCase("/tldr")) {
-            doCommandTLDR(queueList, msg);
-          } else if (msg.getText().toLowerCase().startsWith("/add ")) {
-            doCommandAdd(msg, c);
-          } else if (msg.getText().toLowerCase().startsWith("/remove ")) {
-            doCommandRemove(msg, c);
-          } else if (msg.getText().equalsIgnoreCase("/list")) {
-            doCommandList(msg);
-          } else if (msg.getText().toLowerCase().startsWith("/ttl ")) {
-            doCommandTTL(msg, c);
-          } else if (msg.getText().equalsIgnoreCase("/verbose")) {
-            doCommandVerbose(msg, c);
+      if (messageVo.getText() != null) {
+        if (messageVo.getText().startsWith("/")) {
+          if (messageVo.getText().equalsIgnoreCase("/tldr")) {
+            doCommandTLDR(queueList, messageVo);
+          } else if (messageVo.getText().toLowerCase().startsWith("/add ")) {
+            doCommandAdd(messageVo, connection);
+          } else if (messageVo.getText().toLowerCase().startsWith("/remove ")) {
+            doCommandRemove(messageVo, connection);
+          } else if (messageVo.getText().equalsIgnoreCase("/list")) {
+            doCommandList(messageVo);
+          } else if (messageVo.getText().toLowerCase().startsWith("/ttl ")) {
+            doCommandTTL(messageVo, connection);
+          } else if (messageVo.getText().equalsIgnoreCase("/verbose")) {
+            doCommandVerbose(messageVo, connection);
           }
         } else {
-          String msgText = msg.getText().toLowerCase();
+          String msgText = messageVo.getText().toLowerCase();
           for (Keyword keyword : keywords) {
-            if (keyword.getChatId().intValue() == msg.getChat().getId().intValue()) {
+            if (keyword.getChatId() == messageVo.getChat()) {
               queueList.addAll(
                   keyword.getKeywords()
                       .stream()
                       .filter(msgText::contains)
-                      .map(kw -> msg)
+                      .map(kw -> messageVo)
                       .distinct()
                       .collect(Collectors.toList()));
             }
           }
         }
       }
-      uid = upd.getUpdate_id() + 1;
+      lastUpdateId = updateVo.getUpdateId() + 1;
     }
   }
 
-  private void doCommandTLDR(ArrayList<Message> queueList, Message msg) {
+  private List<UpdateVo> getUpdates(int updateId) {
+    String sUpdates = "";
+    try {
+      sUpdates = telegramService.getUpdates("offset=" + updateId);
+    } catch (IOException e) {
+      LOGGER.warn("Failed to receive new messages from Telegram, will retry soon...");
+    }
+
+    Gson gs = new Gson();
+    Type responseType = new TypeToken<Response<Update[]>>() {}.getType();
+    Response<Update[]> updatesResponse = gs.fromJson(sUpdates, responseType);
+
+    return Arrays.stream(updatesResponse.getResult())
+        .map(UpdateVo::new)
+        .collect(Collectors.toList());
+  }
+
+  private List<MessageVo> keepOnlyRecentMessagesOnQueue(List<MessageVo> queueList) {
+    List<MessageVo> newQueueList = new ArrayList<>();
+
+    for (MessageVo messageVo : queueList) {
+      int ttl = settings.stream()
+          .filter(setting -> setting.getChatId() == messageVo.getChat())
+          .map(Setting::getiTTL)
+          .max(Comparator.comparingInt(Integer::intValue))
+          .orElse(TTL);
+
+      LocalDateTime messageExpirationTime = LocalDateTime.now();
+      messageExpirationTime.minusHours(ttl);
+      long messageEpoch = messageExpirationTime.toEpochSecond(ZoneOffset.UTC);
+
+      if (messageVo.isYoungerThanEpoch(messageEpoch)) {
+        newQueueList.add(messageVo);
+      }
+    }
+
+    return newQueueList;
+  }
+
+  private void doCommandTLDR(List<MessageVo> queueList, MessageVo messageVo) {
     try {
       Setting temp = null;
       for (Setting setting : settings) {
-        if (setting.getChatId().equals(msg.getChat().getId())) {
+        if (setting.getChatId().equals(messageVo.getChat())) {
           temp = setting;
         }
       }
 
-      int response = msg.getChat().getId();
+      int response = messageVo.getChat();
       if (temp != null && !temp.getVerbose()) {
-        response = msg.getFrom().getId();
+        response = messageVo.getFrom();
       }
       String header = "Nothing to gossip about, how disgusting!";
       boolean found = false;
-      for (Message msgTemp : queueList) {
-        if (msg.getChat().getId().equals(msgTemp.getChat().getId())) {
+      for (MessageVo msgTemp : queueList) {
+        if (messageVo.getChat() == msgTemp.getChat()) {
           found = true;
           break;
         }
@@ -177,9 +188,9 @@ public class TldrBotManager {
       } catch (IOException e) {
         e.printStackTrace();
       }
-      for (Message oldMsg : queueList) {
-        if (oldMsg.getChat().getId().equals(msg.getChat().getId())) {
-          String params = "chat_id=" + response + "&from_chat_id=" + oldMsg.getChat().getId() + "&message_id=" + oldMsg.getMessage_id();
+      for (MessageVo oldMsg : queueList) {
+        if (oldMsg.getChat() == messageVo.getChat()) {
+          String params = "chat_id=" + response + "&from_chat_id=" + oldMsg.getChat() + "&message_id=" + oldMsg.getMessageId();
           telegramService.forwardMessage(params);
         }
       }
@@ -189,12 +200,12 @@ public class TldrBotManager {
     }
   }
 
-  private void doCommandAdd(Message msg, Connection c) {
+  private void doCommandAdd(MessageVo messageVo, Connection connection) {
     boolean added = false;
     String sNewKeyword = "";
-    if (msg.getText().length() > 5) {
+    if (messageVo.getText().length() > 5) {
       try {
-        sNewKeyword = msg.getText().toLowerCase();
+        sNewKeyword = messageVo.getText().toLowerCase();
         sNewKeyword = trim(sNewKeyword.substring(5, Math.min(sNewKeyword.length(), 35)));
       } catch (StringIndexOutOfBoundsException e) {
         e.printStackTrace();
@@ -205,7 +216,7 @@ public class TldrBotManager {
 
     if (!sNewKeyword.trim().equals("")) {
       for (Keyword keyword : keywords) {
-        if (keyword.getChatId().intValue() == msg.getChat().getId().intValue()) {
+        if (keyword.getChatId() == messageVo.getChat()) {
           boolean duplicate = false;
           for (String tempKW : keyword.getKeywords()) {
             if (tempKW.equalsIgnoreCase(sNewKeyword)) {
@@ -222,7 +233,7 @@ public class TldrBotManager {
       if (!added) {
         try {
           Keyword newKeyword = new Keyword();
-          newKeyword.setChatId(msg.getChat().getId());
+          newKeyword.setChatId(messageVo.getChat());
           newKeyword.getKeywords().add(sNewKeyword);
           added = keywords.add(newKeyword);
         } catch (StringIndexOutOfBoundsException e) {
@@ -233,8 +244,8 @@ public class TldrBotManager {
       if (added) {
         PreparedStatement pstmt = null;
         try {
-          pstmt = c.prepareStatement(INSERT_KEYWORD);
-          pstmt.setInt(1, msg.getChat().getId());
+          pstmt = connection.prepareStatement(INSERT_KEYWORD);
+          pstmt.setInt(1, messageVo.getChat());
           pstmt.setString(2, sNewKeyword);
           pstmt.executeUpdate();
         } catch (SQLException e) {
@@ -252,24 +263,24 @@ public class TldrBotManager {
     }
   }
 
-  private void doCommandRemove(Message msg, Connection c) {
+  private void doCommandRemove(MessageVo messageVo, Connection connection) {
     Setting temp = null;
     for (Setting setting : settings) {
-      if (setting.getChatId().equals(msg.getChat().getId())) {
+      if (setting.getChatId().equals(messageVo.getChat())) {
         temp = setting;
       }
     }
 
-    int response = msg.getChat().getId();
+    int response = messageVo.getChat();
     if (temp != null && !temp.getVerbose()) {
-      response = msg.getFrom().getId();
+      response = messageVo.getFrom();
     }
 
     boolean removed = false;
     String rKeyword = "";
-    if (msg.getText().length() > 8) {
+    if (messageVo.getText().length() > 8) {
       try {
-        rKeyword = msg.getText().toLowerCase();
+        rKeyword = messageVo.getText().toLowerCase();
         rKeyword = trim(rKeyword.substring(8, Math.min(rKeyword.length(), 38)));
       } catch (StringIndexOutOfBoundsException e) {
         e.printStackTrace();
@@ -280,7 +291,7 @@ public class TldrBotManager {
 
     if (!rKeyword.trim().equals("")) {
       for (Keyword keyword : keywords) {
-        if (keyword.getChatId().intValue() == msg.getChat().getId().intValue()) {
+        if (keyword.getChatId() == messageVo.getChat()) {
           removed = keyword.getKeywords().remove(rKeyword);
 
           if (keyword.getKeywords().isEmpty()) {
@@ -300,8 +311,8 @@ public class TldrBotManager {
       if (removed) {
         PreparedStatement pstmt = null;
         try {
-          pstmt = c.prepareStatement(DELETE_KEYWORD);
-          pstmt.setInt(1, msg.getChat().getId());
+          pstmt = connection.prepareStatement(DELETE_KEYWORD);
+          pstmt.setInt(1, messageVo.getChat());
           pstmt.setString(2, rKeyword);
           pstmt.executeUpdate();
         } catch (SQLException e) {
@@ -319,18 +330,18 @@ public class TldrBotManager {
     }
   }
 
-  private void doCommandList(Message msg) {
+  private void doCommandList(MessageVo messageVo) {
     Setting temp = null;
     for (Setting setting : settings) {
-      if (setting.getChatId().equals(msg.getChat().getId())) {
+      if (setting.getChatId().equals(messageVo.getChat())) {
         temp = setting;
         break;
       }
     }
 
-    int response = msg.getChat().getId();
+    int response = messageVo.getChat();
     if (temp != null && !temp.getVerbose()) {
-      response = msg.getFrom().getId();
+      response = messageVo.getFrom();
     }
 
     if (keywords.isEmpty()) {
@@ -343,7 +354,7 @@ public class TldrBotManager {
       }
     } else {
       for (Keyword keyword : keywords) {
-        if (keyword.getChatId().intValue() == msg.getChat().getId().intValue()) {
+        if (keyword.getChatId() == messageVo.getChat()) {
           if (keyword.getKeywords().isEmpty()) {
             try {
               String params = "chat_id=" + response + "&text=" + URLEncoder.encode("Keywords list is empty.", "UTF-8");
@@ -371,11 +382,11 @@ public class TldrBotManager {
     }
   }
 
-  private void doCommandTTL(Message msg, Connection c) {
+  private void doCommandTTL(MessageVo messageVo, Connection connection) {
     String time = "";
-    if (msg.getText().length() > 5) {
+    if (messageVo.getText().length() > 5) {
       try {
-        time = msg.getText().toLowerCase();
+        time = messageVo.getText().toLowerCase();
         time = trim(time.substring(5, Math.min(time.length(), 10)));
       } catch (StringIndexOutOfBoundsException e) {
         e.printStackTrace();
@@ -389,7 +400,7 @@ public class TldrBotManager {
         int value = Integer.parseInt(time);
         Setting tempSetting = null;
         for (Setting setting : settings) {
-          if (setting.getChatId().equals(msg.getChat().getId())) {
+          if (setting.getChatId().equals(messageVo.getChat())) {
             setting.setiTTL(value);
             tempSetting = setting;
             break;
@@ -398,7 +409,7 @@ public class TldrBotManager {
 
         if (tempSetting == null) {
           tempSetting = new Setting();
-          tempSetting.setChatId(msg.getChat().getId());
+          tempSetting.setChatId(messageVo.getChat());
           tempSetting.setVerbose(VERBOSE);
           tempSetting.setiTTL(value);
           settings.add(tempSetting);
@@ -406,7 +417,7 @@ public class TldrBotManager {
 
         PreparedStatement pstmt = null;
         try {
-          pstmt = c.prepareStatement(INSERT_CONFIG);
+          pstmt = connection.prepareStatement(INSERT_CONFIG);
           pstmt.setInt(1, tempSetting.getChatId());
           pstmt.setBoolean(2, tempSetting.getVerbose());
           pstmt.setInt(3, tempSetting.getiTTL());
@@ -428,10 +439,10 @@ public class TldrBotManager {
     }
   }
 
-  private void doCommandVerbose(Message msg, Connection c) {
+  private void doCommandVerbose(MessageVo messageVo, Connection connection) {
     Setting tempSetting = null;
     for (Setting setting : settings) {
-      if (setting.getChatId().equals(msg.getChat().getId())) {
+      if (setting.getChatId().equals(messageVo.getChat())) {
         setting.setVerbose(!setting.getVerbose());
         tempSetting = setting;
         break;
@@ -440,13 +451,13 @@ public class TldrBotManager {
 
     if (tempSetting == null) {
       tempSetting = new Setting();
-      tempSetting.setChatId(msg.getChat().getId());
+      tempSetting.setChatId(messageVo.getChat());
       tempSetting.setVerbose(!VERBOSE);
       tempSetting.setiTTL(TTL);
       settings.add(tempSetting);
     }
 
-    int response = msg.getChat().getId();
+    int response = messageVo.getChat();
     String responseMode = "Verbose mode activated. Now I'll answer in public chat, how disgusting...";
     if (tempSetting != null && !tempSetting.getVerbose()) {
       //response = msg.getFrom().getId();
@@ -463,7 +474,7 @@ public class TldrBotManager {
 
     PreparedStatement pstmt = null;
     try {
-      pstmt = c.prepareStatement(INSERT_CONFIG);
+      pstmt = connection.prepareStatement(INSERT_CONFIG);
       pstmt.setInt(1, tempSetting.getChatId());
       pstmt.setBoolean(2, tempSetting.getVerbose());
       pstmt.setInt(3, tempSetting.getiTTL());

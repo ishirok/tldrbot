@@ -7,6 +7,14 @@
     {
       "name": "tldr.telegramApi",
       "type": "java.lang.String"
+    },
+    {
+      "name": "tldr.verbose",
+      "type": "java.lang.Boolean"
+    },
+    {
+      "name": "tldr.ttl",
+      "type": "java.lang.Integer"
     }
   ]
 }
