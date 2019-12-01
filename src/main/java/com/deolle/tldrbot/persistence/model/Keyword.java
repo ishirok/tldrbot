@@ -1,4 +1,4 @@
-package com.deolle.tldrbot.persistence.dto;
+package com.deolle.tldrbot.persistence.model;
 
 import java.util.ArrayList;
 import java.util.List;

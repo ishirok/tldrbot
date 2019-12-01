@@ -1,4 +1,4 @@
-package com.deolle.tldrbot.persistence.dto;
+package com.deolle.tldrbot.persistence.model;
 
 public class Setting {
 

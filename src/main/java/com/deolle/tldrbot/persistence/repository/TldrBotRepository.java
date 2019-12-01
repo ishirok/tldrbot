@@ -1,7 +1,7 @@
 package com.deolle.tldrbot.persistence.repository;
 
-import com.deolle.tldrbot.persistence.dto.Keyword;
-import com.deolle.tldrbot.persistence.dto.Setting;
+import com.deolle.tldrbot.persistence.model.Keyword;
+import com.deolle.tldrbot.persistence.model.Setting;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;

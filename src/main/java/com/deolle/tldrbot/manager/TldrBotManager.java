@@ -1,7 +1,7 @@
 package com.deolle.tldrbot.manager;
 
-import com.deolle.tldrbot.persistence.dto.Keyword;
-import com.deolle.tldrbot.persistence.dto.Setting;
+import com.deolle.tldrbot.persistence.model.Keyword;
+import com.deolle.tldrbot.persistence.model.Setting;
 import com.deolle.tldrbot.service.TelegramService;
 import com.deolle.tldrbot.vo.MessageVo;
 import com.deolle.tldrbot.vo.UpdateVo;
