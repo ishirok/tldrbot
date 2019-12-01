@@ -8,14 +8,9 @@ import com.deolle.tldrbot.vo.UpdateVo;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import org.springframework.beans.factory.annotation.Value;
-import org.telegram.dto.Response;
-import org.telegram.dto.Update;
 import com.deolle.tldrbot.persistence.repository.TldrBotRepository;
-import com.google.gson.Gson;
 
-import com.google.gson.reflect.TypeToken;
 import java.io.*;
-import java.lang.reflect.Type;
 import java.net.URLEncoder;
 import java.sql.*;
 import java.util.*;
@@ -76,7 +71,7 @@ public class TldrBotManager {
   public void manageNewMessages() {
     queueList = keepOnlyRecentMessagesOnQueue(queueList);
 
-    List<UpdateVo> updates = getUpdates(lastUpdateId);
+    List<UpdateVo> updates = telegramService.getUpdates(lastUpdateId);
 
     handleNewMessages(updates);
   }
@@ -117,23 +112,6 @@ public class TldrBotManager {
       }
       lastUpdateId = updateVo.getUpdateId() + 1;
     }
-  }
-
-  private List<UpdateVo> getUpdates(int updateId) {
-    String sUpdates = "";
-    try {
-      sUpdates = telegramService.getUpdates("offset=" + updateId);
-    } catch (IOException e) {
-      LOGGER.warn("Failed to receive new messages from Telegram, will retry soon...");
-    }
-
-    Gson gs = new Gson();
-    Type responseType = new TypeToken<Response<Update[]>>() {}.getType();
-    Response<Update[]> updatesResponse = gs.fromJson(sUpdates, responseType);
-
-    return Arrays.stream(updatesResponse.getResult())
-        .map(UpdateVo::new)
-        .collect(Collectors.toList());
   }
 
   private List<MessageVo> keepOnlyRecentMessagesOnQueue(List<MessageVo> queueList) {
