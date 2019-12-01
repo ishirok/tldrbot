@@ -83,7 +83,7 @@ public class TldrBotRepository {
 
         KeywordDto keyword = null;
         for (KeywordDto tempKW : keywords) {
-          if (tempKW.getChatId().equals(chatId)) {
+          if (tempKW.getChatId() == chatId) {
             keyword = tempKW;
             break;
           }

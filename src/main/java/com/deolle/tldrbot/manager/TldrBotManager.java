@@ -131,7 +131,7 @@ public class TldrBotManager {
         } else {
           String msgText = msg.getText().toLowerCase();
           for (KeywordDto kws : keywords) {
-            if (kws.getChatId().equals(msg.getChat().getId())) {
+            if (kws.getChatId().intValue() == msg.getChat().getId().intValue()) {
               queueList.addAll(kws.getKeywords().stream().filter(kw -> msgText.contains(kw)).map(kw -> msg).distinct().collect(Collectors.toList()));
             }
           }
@@ -199,7 +199,7 @@ public class TldrBotManager {
 
     if (!sNewKeyword.trim().equals("")) {
       for (KeywordDto kws : keywords) {
-        if (kws.getChatId().equals(msg.getChat().getId())) {
+        if (kws.getChatId().intValue() == msg.getChat().getId().intValue()) {
           boolean duplicate = false;
           for (String tempKW : kws.getKeywords()) {
             if (tempKW.equalsIgnoreCase(sNewKeyword)) {
@@ -274,7 +274,7 @@ public class TldrBotManager {
 
     if (!rKeyword.trim().equals("")) {
       for (KeywordDto kws : keywords) {
-        if (kws.getChatId().equals(msg.getChat().getId())) {
+        if (kws.getChatId().intValue() == msg.getChat().getId().intValue()) {
           removed = kws.getKeywords().remove(rKeyword);
 
           if (kws.getKeywords().isEmpty()) {
@@ -337,7 +337,7 @@ public class TldrBotManager {
       }
     } else {
       for (KeywordDto kws : keywords) {
-        if (kws.getChatId().equals(msg.getChat().getId())) {
+        if (kws.getChatId().intValue() == msg.getChat().getId().intValue()) {
           if (kws.getKeywords().isEmpty()) {
             try {
               String params = "chat_id=" + response + "&text=" + URLEncoder.encode("Keywords list is empty.", "UTF-8");
