@@ -8,8 +8,12 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class TldrBotRepository {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(TldrBotRepository.class);
 
   private static final String CREATE_TABLE_KW     = "CREATE TABLE KEYWORDS " +
       "(CHAT_ID   INT         NOT NULL, " +
@@ -65,14 +69,17 @@ public class TldrBotRepository {
   }
 
   public boolean loadKeywordsData(Connection c, List<KeywordDto> keywords) {
+    LOGGER.debug("*** Initiating load of keywords from database ***");
     Statement stmt = null;
     ResultSet rs = null;
     try {
       stmt = c.createStatement();
       rs = stmt.executeQuery(SELECT_KEYWORDS);
+      LOGGER.debug("Reviewing keywords...");
       while (rs.next()) {
         int chatId = rs.getInt(1);
         String kw = rs.getString(2);
+        LOGGER.debug("Found chat id "+chatId+" and keyword "+kw);
 
         KeywordDto keyword = null;
         for (KeywordDto tempKW : keywords) {
@@ -83,11 +90,13 @@ public class TldrBotRepository {
         }
         if (keyword != null) {
           keyword.getKeywords().add(kw);
+          LOGGER.debug("Added keyword "+kw+" to chat id "+chatId);
         } else {
           keyword = new KeywordDto();
           keyword.setChatId(chatId);
           keyword.getKeywords().add(kw);
           keywords.add(keyword);
+          LOGGER.debug("Added new chat id "+chatId+" and keyword "+kw);
         }
       }
     } catch (SQLException e) {
