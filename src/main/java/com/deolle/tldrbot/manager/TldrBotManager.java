@@ -38,7 +38,7 @@ public class TldrBotManager {
   private static final boolean VERBOSE            = true;
   private static final int     TTL                = 8;
 
-  private Connection c = TldrBotRepository.openDatabase();
+  private static Connection c = TldrBotRepository.openDatabase();
 
   private static Integer uid = 0;
 
@@ -49,10 +49,11 @@ public class TldrBotManager {
     this.telegramService = telegramService;
   }
 
-  @Scheduled(fixedRate = 2000)
-  public void checkForNewMessages() {
-    LOGGER.debug("Cron started!");
-    ArrayList<Message> queueList = new ArrayList<>();
+  static {
+    TldrBotManager.initializeTldrBot();
+  }
+
+  private static void initializeTldrBot() {
     TldrBotRepository tldrBotRepository = new TldrBotRepository();
 
     if (c == null) {
@@ -66,6 +67,12 @@ public class TldrBotManager {
     if (!tldrBotRepository.loadConfigData(c, configs)) {
       return;
     }
+  }
+
+  @Scheduled(fixedRate = 2000)
+  public void checkForNewMessages() {
+    LOGGER.debug("Cron started!");
+    ArrayList<Message> queueList = new ArrayList<>();
 
     for (int i = queueList.size() - 1; i >= 0; i--) {
       Calendar timeMargin = Calendar.getInstance();
