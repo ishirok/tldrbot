@@ -1,6 +1,6 @@
-package com.deolle.tldrbot.dto;
+package com.deolle.tldrbot.persistence.dto;
 
-public class SettingsDto {
+public class Setting {
 
   private Integer chatId;
   private Boolean verbose;

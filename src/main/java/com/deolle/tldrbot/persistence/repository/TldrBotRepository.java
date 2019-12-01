@@ -1,7 +1,7 @@
-package com.deolle.tldrbot.repository;
+package com.deolle.tldrbot.persistence.repository;
 
-import com.deolle.tldrbot.dto.KeywordDto;
-import com.deolle.tldrbot.dto.SettingsDto;
+import com.deolle.tldrbot.persistence.dto.Keyword;
+import com.deolle.tldrbot.persistence.dto.Setting;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -37,18 +37,18 @@ public class TldrBotRepository {
   private static final String SELECT_CONFIG       = "SELECT CHAT_ID, VERBOSE, TTL FROM CONFIG;";
 
   public static Connection openDatabase() {
-    Connection c = null;
-    Statement stmt = null;
+    Connection connection = null;
+    Statement statement = null;
     try {
       Class.forName("org.sqlite.JDBC");
-      c = DriverManager.getConnection("jdbc:sqlite:tldr.db");
-      c.setAutoCommit(true);
+      connection = DriverManager.getConnection("jdbc:sqlite:tldr.db");
+      connection.setAutoCommit(true);
 
-      stmt = c.createStatement();
-      stmt.executeUpdate(CREATE_TABLE_CFG);
-      stmt.executeUpdate(CREATE_INDEX_CFG);
-      stmt.executeUpdate(CREATE_TABLE_KW);
-      stmt.executeUpdate(CREATE_INDEX_KW);
+      statement = connection.createStatement();
+      statement.executeUpdate(CREATE_TABLE_CFG);
+      statement.executeUpdate(CREATE_INDEX_CFG);
+      statement.executeUpdate(CREATE_TABLE_KW);
+      statement.executeUpdate(CREATE_INDEX_KW);
     } catch (SQLException e) {
       if (!e.getMessage().equals("table KEYWORDS already exists") &&
           !e.getMessage().equals("table CONFIG already exists")) {
@@ -59,60 +59,60 @@ public class TldrBotRepository {
       return null;
     } finally {
       try {
-        stmt.close();
+        statement.close();
       } catch (SQLException e) {
         e.printStackTrace();
       }
     }
 
-    return c;
+    return connection;
   }
 
-  public boolean loadKeywordsData(Connection c, List<KeywordDto> keywords) {
+  public boolean loadKeywordsData(Connection connection, List<Keyword> keywords) {
     LOGGER.debug("*** Initiating load of keywords from database ***");
-    Statement stmt = null;
-    ResultSet rs = null;
+    Statement statement = null;
+    ResultSet resultSet = null;
     try {
-      stmt = c.createStatement();
-      rs = stmt.executeQuery(SELECT_KEYWORDS);
+      statement = connection.createStatement();
+      resultSet = statement.executeQuery(SELECT_KEYWORDS);
       LOGGER.debug("Reviewing keywords...");
-      while (rs.next()) {
-        int chatId = rs.getInt(1);
-        String kw = rs.getString(2);
-        LOGGER.debug("Found chat id "+chatId+" and keyword "+kw);
+      while (resultSet.next()) {
+        int chatId = resultSet.getInt(1);
+        String stringKeyword = resultSet.getString(2);
+        LOGGER.debug("Found chat id "+chatId+" and keyword "+stringKeyword);
 
-        KeywordDto keyword = null;
-        for (KeywordDto tempKW : keywords) {
-          if (tempKW.getChatId() == chatId) {
-            keyword = tempKW;
+        Keyword keyword = null;
+        for (Keyword tempKeyword : keywords) {
+          if (tempKeyword.getChatId() == chatId) {
+            keyword = tempKeyword;
             break;
           }
         }
         if (keyword != null) {
-          keyword.getKeywords().add(kw);
-          LOGGER.debug("Added keyword "+kw+" to chat id "+chatId);
+          keyword.getKeywords().add(stringKeyword);
+          LOGGER.debug("Added keyword "+stringKeyword+" to chat id "+chatId);
         } else {
-          keyword = new KeywordDto();
+          keyword = new Keyword();
           keyword.setChatId(chatId);
-          keyword.getKeywords().add(kw);
+          keyword.getKeywords().add(stringKeyword);
           keywords.add(keyword);
-          LOGGER.debug("Added new chat id "+chatId+" and keyword "+kw);
+          LOGGER.debug("Added new chat id "+chatId+" and keyword "+stringKeyword);
         }
       }
     } catch (SQLException e) {
       e.printStackTrace();
       return false;
     } finally {
-      if (rs != null) {
+      if (resultSet != null) {
         try {
-          rs.close();
+          resultSet.close();
         } catch (SQLException e) {
           e.printStackTrace();
         }
       }
-      if (stmt != null) {
+      if (statement != null) {
         try {
-          stmt.close();
+          statement.close();
         } catch (SQLException e) {
           e.printStackTrace();
         }
@@ -122,37 +122,37 @@ public class TldrBotRepository {
     return true;
   }
 
-  public boolean loadConfigData(Connection c, List<SettingsDto> configs) {
-    Statement stmt = null;
-    ResultSet rs = null;
+  public boolean loadSettingsData(Connection connection, List<Setting> settings) {
+    Statement statement = null;
+    ResultSet resultSet = null;
     try {
-      stmt = c.createStatement();
-      rs = stmt.executeQuery(SELECT_CONFIG);
-      while (rs.next()) {
-        int chatId = rs.getInt(1);
-        boolean verb = rs.getBoolean(2);
-        int ttl = rs.getInt(3);
+      statement = connection.createStatement();
+      resultSet = statement.executeQuery(SELECT_CONFIG);
+      while (resultSet.next()) {
+        int chatId = resultSet.getInt(1);
+        boolean verb = resultSet.getBoolean(2);
+        int ttl = resultSet.getInt(3);
 
-        SettingsDto config = new SettingsDto();
-        config.setChatId(chatId);
-        config.setVerbose(verb);
-        config.setiTTL(ttl);
-        configs.add(config);
+        Setting setting = new Setting();
+        setting.setChatId(chatId);
+        setting.setVerbose(verb);
+        setting.setiTTL(ttl);
+        settings.add(setting);
       }
     } catch (SQLException e) {
       e.printStackTrace();
       return false;
     } finally {
-      if (rs != null) {
+      if (resultSet != null) {
         try {
-          rs.close();
+          resultSet.close();
         } catch (SQLException e) {
           e.printStackTrace();
         }
       }
-      if (stmt != null) {
+      if (statement != null) {
         try {
-          stmt.close();
+          statement.close();
         } catch (SQLException e) {
           e.printStackTrace();
         }

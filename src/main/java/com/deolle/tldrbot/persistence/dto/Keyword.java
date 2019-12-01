@@ -1,13 +1,13 @@
-package com.deolle.tldrbot.dto;
+package com.deolle.tldrbot.persistence.dto;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class KeywordDto {
+public class Keyword {
   private Integer chatId;
   private List<String> keywords;
 
-  public KeywordDto() {
+  public Keyword() {
     super();
     keywords = new ArrayList<>();
   }

@@ -1,12 +1,12 @@
 package com.deolle.tldrbot.manager;
 
-import com.deolle.tldrbot.dto.KeywordDto;
-import com.deolle.tldrbot.dto.SettingsDto;
+import com.deolle.tldrbot.persistence.dto.Keyword;
+import com.deolle.tldrbot.persistence.dto.Setting;
 import com.deolle.tldrbot.service.TelegramService;
 import org.telegram.dto.Message;
 import org.telegram.dto.Response;
 import org.telegram.dto.Update;
-import com.deolle.tldrbot.repository.TldrBotRepository;
+import com.deolle.tldrbot.persistence.repository.TldrBotRepository;
 import com.google.gson.Gson;
 
 import com.google.gson.reflect.TypeToken;
@@ -25,8 +25,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class TldrBotManager {
 
-  private static ArrayList<KeywordDto> keywords      = new ArrayList<>();
-  private static ArrayList<SettingsDto> configs        = new ArrayList<>();
+  private static ArrayList<Keyword> keywords      = new ArrayList<>();
+  private static ArrayList<Setting> settings = new ArrayList<>();
 
   private static final Logger LOGGER = LoggerFactory.getLogger(TldrBotManager.class);
 
@@ -64,7 +64,7 @@ public class TldrBotManager {
       return;
     }
 
-    if (!tldrBotRepository.loadConfigData(c, configs)) {
+    if (!tldrBotRepository.loadSettingsData(c, settings)) {
       return;
     }
   }
@@ -77,10 +77,10 @@ public class TldrBotManager {
     for (int i = queueList.size() - 1; i >= 0; i--) {
       Calendar timeMargin = Calendar.getInstance();
 
-      SettingsDto temp = null;
-      for (SettingsDto config : configs) {
-        if (config.getChatId().equals(queueList.get(i).getChat().getId())) {
-          temp = config;
+      Setting temp = null;
+      for (Setting setting : settings) {
+        if (setting.getChatId().equals(queueList.get(i).getChat().getId())) {
+          temp = setting;
         }
       }
 
@@ -130,10 +130,10 @@ public class TldrBotManager {
           }
         } else {
           String msgText = msg.getText().toLowerCase();
-          for (KeywordDto kws : keywords) {
-            if (kws.getChatId().intValue() == msg.getChat().getId().intValue()) {
+          for (Keyword keyword : keywords) {
+            if (keyword.getChatId().intValue() == msg.getChat().getId().intValue()) {
               queueList.addAll(
-                  kws.getKeywords()
+                  keyword.getKeywords()
                       .stream()
                       .filter(msgText::contains)
                       .map(kw -> msg)
@@ -149,10 +149,10 @@ public class TldrBotManager {
 
   private void doCommandTLDR(ArrayList<Message> queueList, Message msg) {
     try {
-      SettingsDto temp = null;
-      for (SettingsDto config : configs) {
-        if (config.getChatId().equals(msg.getChat().getId())) {
-          temp = config;
+      Setting temp = null;
+      for (Setting setting : settings) {
+        if (setting.getChatId().equals(msg.getChat().getId())) {
+          temp = setting;
         }
       }
 
@@ -204,24 +204,24 @@ public class TldrBotManager {
     }
 
     if (!sNewKeyword.trim().equals("")) {
-      for (KeywordDto kws : keywords) {
-        if (kws.getChatId().intValue() == msg.getChat().getId().intValue()) {
+      for (Keyword keyword : keywords) {
+        if (keyword.getChatId().intValue() == msg.getChat().getId().intValue()) {
           boolean duplicate = false;
-          for (String tempKW : kws.getKeywords()) {
+          for (String tempKW : keyword.getKeywords()) {
             if (tempKW.equalsIgnoreCase(sNewKeyword)) {
               duplicate = true;
               break;
             }
           }
           if (!duplicate) {
-            added = kws.getKeywords().add(sNewKeyword);
+            added = keyword.getKeywords().add(sNewKeyword);
           }
           break;
         }
       }
       if (!added) {
         try {
-          KeywordDto newKeyword = new KeywordDto();
+          Keyword newKeyword = new Keyword();
           newKeyword.setChatId(msg.getChat().getId());
           newKeyword.getKeywords().add(sNewKeyword);
           added = keywords.add(newKeyword);
@@ -253,10 +253,10 @@ public class TldrBotManager {
   }
 
   private void doCommandRemove(Message msg, Connection c) {
-    SettingsDto temp = null;
-    for (SettingsDto config : configs) {
-      if (config.getChatId().equals(msg.getChat().getId())) {
-        temp = config;
+    Setting temp = null;
+    for (Setting setting : settings) {
+      if (setting.getChatId().equals(msg.getChat().getId())) {
+        temp = setting;
       }
     }
 
@@ -279,11 +279,11 @@ public class TldrBotManager {
     }
 
     if (!rKeyword.trim().equals("")) {
-      for (KeywordDto kws : keywords) {
-        if (kws.getChatId().intValue() == msg.getChat().getId().intValue()) {
-          removed = kws.getKeywords().remove(rKeyword);
+      for (Keyword keyword : keywords) {
+        if (keyword.getChatId().intValue() == msg.getChat().getId().intValue()) {
+          removed = keyword.getKeywords().remove(rKeyword);
 
-          if (kws.getKeywords().isEmpty()) {
+          if (keyword.getKeywords().isEmpty()) {
             try {
               String params = "chat_id=" + response + "&text=" + URLEncoder.encode("Keywords' list is empty.", "UTF-8");
               telegramService.sendMessage(params);
@@ -320,10 +320,10 @@ public class TldrBotManager {
   }
 
   private void doCommandList(Message msg) {
-    SettingsDto temp = null;
-    for (SettingsDto config : configs) {
-      if (config.getChatId().equals(msg.getChat().getId())) {
-        temp = config;
+    Setting temp = null;
+    for (Setting setting : settings) {
+      if (setting.getChatId().equals(msg.getChat().getId())) {
+        temp = setting;
         break;
       }
     }
@@ -342,9 +342,9 @@ public class TldrBotManager {
         return;
       }
     } else {
-      for (KeywordDto kws : keywords) {
-        if (kws.getChatId().intValue() == msg.getChat().getId().intValue()) {
-          if (kws.getKeywords().isEmpty()) {
+      for (Keyword keyword : keywords) {
+        if (keyword.getChatId().intValue() == msg.getChat().getId().intValue()) {
+          if (keyword.getKeywords().isEmpty()) {
             try {
               String params = "chat_id=" + response + "&text=" + URLEncoder.encode("Keywords list is empty.", "UTF-8");
               telegramService.sendMessage(params);
@@ -354,7 +354,7 @@ public class TldrBotManager {
             }
           } else {
             String responseList = "";
-            for (String kw : kws.getKeywords()) {
+            for (String kw : keyword.getKeywords()) {
               responseList += kw + "\n";
             }
             try {
@@ -387,29 +387,29 @@ public class TldrBotManager {
     if (time.length() > 0) {
       try {
         int value = Integer.parseInt(time);
-        SettingsDto temp = null;
-        for (SettingsDto config : configs) {
-          if (config.getChatId().equals(msg.getChat().getId())) {
-            config.setiTTL(value);
-            temp = config;
+        Setting tempSetting = null;
+        for (Setting setting : settings) {
+          if (setting.getChatId().equals(msg.getChat().getId())) {
+            setting.setiTTL(value);
+            tempSetting = setting;
             break;
           }
         }
 
-        if (temp == null) {
-          temp = new SettingsDto();
-          temp.setChatId(msg.getChat().getId());
-          temp.setVerbose(VERBOSE);
-          temp.setiTTL(value);
-          configs.add(temp);
+        if (tempSetting == null) {
+          tempSetting = new Setting();
+          tempSetting.setChatId(msg.getChat().getId());
+          tempSetting.setVerbose(VERBOSE);
+          tempSetting.setiTTL(value);
+          settings.add(tempSetting);
         }
 
         PreparedStatement pstmt = null;
         try {
           pstmt = c.prepareStatement(INSERT_CONFIG);
-          pstmt.setInt(1, temp.getChatId());
-          pstmt.setBoolean(2, temp.getVerbose());
-          pstmt.setInt(3, temp.getiTTL());
+          pstmt.setInt(1, tempSetting.getChatId());
+          pstmt.setBoolean(2, tempSetting.getVerbose());
+          pstmt.setInt(3, tempSetting.getiTTL());
           pstmt.executeUpdate();
         } catch (SQLException e) {
           e.printStackTrace();
@@ -429,26 +429,26 @@ public class TldrBotManager {
   }
 
   private void doCommandVerbose(Message msg, Connection c) {
-    SettingsDto temp = null;
-    for (SettingsDto config : configs) {
-      if (config.getChatId().equals(msg.getChat().getId())) {
-        config.setVerbose(!config.getVerbose());
-        temp = config;
+    Setting tempSetting = null;
+    for (Setting setting : settings) {
+      if (setting.getChatId().equals(msg.getChat().getId())) {
+        setting.setVerbose(!setting.getVerbose());
+        tempSetting = setting;
         break;
       }
     }
 
-    if (temp == null) {
-      temp = new SettingsDto();
-      temp.setChatId(msg.getChat().getId());
-      temp.setVerbose(!VERBOSE);
-      temp.setiTTL(TTL);
-      configs.add(temp);
+    if (tempSetting == null) {
+      tempSetting = new Setting();
+      tempSetting.setChatId(msg.getChat().getId());
+      tempSetting.setVerbose(!VERBOSE);
+      tempSetting.setiTTL(TTL);
+      settings.add(tempSetting);
     }
 
     int response = msg.getChat().getId();
     String responseMode = "Verbose mode activated. Now I'll answer in public chat, how disgusting...";
-    if (temp != null && !temp.getVerbose()) {
+    if (tempSetting != null && !tempSetting.getVerbose()) {
       //response = msg.getFrom().getId();
       responseMode = "Verbose mode disabled. Now I'll answer in private chat, how disgusting...";
     }
@@ -464,9 +464,9 @@ public class TldrBotManager {
     PreparedStatement pstmt = null;
     try {
       pstmt = c.prepareStatement(INSERT_CONFIG);
-      pstmt.setInt(1, temp.getChatId());
-      pstmt.setBoolean(2, temp.getVerbose());
-      pstmt.setInt(3, temp.getiTTL());
+      pstmt.setInt(1, tempSetting.getChatId());
+      pstmt.setBoolean(2, tempSetting.getVerbose());
+      pstmt.setInt(3, tempSetting.getiTTL());
       pstmt.executeUpdate();
     } catch (SQLException e) {
       e.printStackTrace();
