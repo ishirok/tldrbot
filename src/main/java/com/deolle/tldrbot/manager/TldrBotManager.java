@@ -132,7 +132,13 @@ public class TldrBotManager {
           String msgText = msg.getText().toLowerCase();
           for (KeywordDto kws : keywords) {
             if (kws.getChatId().intValue() == msg.getChat().getId().intValue()) {
-              queueList.addAll(kws.getKeywords().stream().filter(kw -> msgText.contains(kw)).map(kw -> msg).distinct().collect(Collectors.toList()));
+              queueList.addAll(
+                  kws.getKeywords()
+                      .stream()
+                      .filter(msgText::contains)
+                      .map(kw -> msg)
+                      .distinct()
+                      .collect(Collectors.toList()));
             }
           }
         }
